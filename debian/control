@@ -1,0 +1,13 @@
+Source: asterisk
+Section: comm
+Priority: optional
+Maintainer: Alexey Khabulyak <akhabulyak@corp.finam.ru>
+Build-Depends: debhelper (>=9)
+Standards-Version: 3.9.8
+Homepage: http://www.asterisk.org
+
+Package: asterisk
+Architecture: amd64
+Multi-Arch: foreign
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Open Source Private Branch Exchange (PBX)

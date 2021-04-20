@@ -1,0 +1,51 @@
+#!/usr/bin/make -f
+# You must remove unused comment lines for the released package.
+#export DH_VERBOSE = 1
+#export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+#export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
+#export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+
+%:
+	dh $@
+
+DEBVERSION:=$(shell dpkg-parsechangelog | sed -n -e 's/Version: //p')
+DEB_NOEPOCH_VERSION:=$(shell echo $(DEBVERSION) | cut -d':' -f 2)
+
+override_dh_autoreconf:
+	if [ ! -r configure.debian_sav ]; then cp -a configure configure.debian_sav; fi
+	[ -f .version.debian_sav ] || cp -a .version .version.debian_sav
+	echo $(DEB_NOEPOCH_VERSION) > .version
+	dh_autoreconf -- ./bootstrap.sh
+
+override_dh_clean:
+	rm -rf third-party/jansson/dest
+	rm -rf addons/mp3
+	[ ! -f .version.debian_sav ] || mv .version.debian_sav .version
+	dh_clean
+
+override_dh_auto_configure:
+	./contrib/scripts/get_mp3_source.sh
+	dh_auto_configure -- \
+		--with-jansson-bundled
+	make menuselect.makeopts
+	menuselect/menuselect --enable-category MENUSELECT_ADDONS --disable BUILD_NATIVE \
+		--enable CORE-SOUNDS-EN-WAV --enable CORE-SOUNDS-EN-ULAW \
+		--enable CORE-SOUNDS-EN-ALAW --enable CORE-SOUNDS-EN-G729 \
+		--enable CORE-SOUNDS-RU-WAV --enable CORE-SOUNDS-RU-ULAW \
+		--enable CORE-SOUNDS-RU-ALAW --enable CORE-SOUNDS-RU-GSM \
+		--enable CORE-SOUNDS-RU-G729 --enable MOH-OPSOUND-ULAW \
+		--enable MOH-OPSOUND-ALAW --enable MOH-OPSOUND-GSM \
+		--enable MOH-OPSOUND-G729 --enable EXTRA-SOUNDS-EN-WAV \
+		--enable EXTRA-SOUNDS-EN-ULAW --enable EXTRA-SOUNDS-EN-ALAW \
+		--enable EXTRA-SOUNDS-EN-GSM --enable EXTRA-SOUNDS-EN-G729 menuselect.makeopts
+
+override_dh_builddeb:
+	#install base scripts
+	mkdir -p  $(CURDIR)/debian/asterisk/etc/default
+	cp $(CURDIR)/debian/default/asterisk $(CURDIR)/debian/asterisk/etc/default/asterisk
+	mkdir -p  $(CURDIR)/debian/asterisk/lib/systemd/system
+	cp $(CURDIR)/debian/system/asterisk.service $(CURDIR)/debian/asterisk/lib/systemd/system/asterisk.service
+	mkdir -p $(CURDIR)/debian/asterisk/etc/logrotate.d/
+	cp $(CURDIR)/debian/logrotate.d/asterisk $(CURDIR)/debian/asterisk/etc/logrotate.d/asterisk
+	DESTDIR=$(CURDIR)/debian/asterisk make samples 
+	dh_builddeb
